@@ -1,0 +1,338 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>WSB Intelligence</title>
+<link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=Barlow:wght@300;400;500;600;700&family=Barlow+Condensed:wght@400;500;600;700&display=swap" rel="stylesheet">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.js"></script>
+<style>
+:root{
+  --bg:#07080a;--bg2:#0e1014;--bg3:#161820;--bg4:#1e2028;--bg5:#252830;
+  --border:rgba(255,255,255,0.05);--border2:rgba(255,255,255,0.09);--border3:rgba(255,255,255,0.14);
+  --text:#e8eaf0;--muted:#5a5e6e;--muted2:#7a7e90;
+  --green:#00d4aa;--red:#ff4757;--amber:#ffb347;--blue:#4a90d9;
+  --green-bg:rgba(0,212,170,0.08);--red-bg:rgba(255,71,87,0.08);--amber-bg:rgba(255,179,71,0.08);
+  --green-b:rgba(0,212,170,0.2);--red-b:rgba(255,71,87,0.2);--amber-b:rgba(255,179,71,0.2);
+  --r:10px;--r-sm:6px;
+}
+*{box-sizing:border-box;margin:0;padding:0;}
+::-webkit-scrollbar{width:4px;height:4px;}
+::-webkit-scrollbar-thumb{background:var(--bg5);border-radius:2px;}
+body{background:var(--bg);color:var(--text);font-family:'Barlow',sans-serif;min-height:100vh;}
+
+nav{background:var(--bg2);border-bottom:1px solid var(--border2);padding:0 28px;display:flex;align-items:center;justify-content:space-between;height:54px;position:sticky;top:0;z-index:100;}
+.nav-brand{font-family:'Bebas Neue',sans-serif;font-size:22px;letter-spacing:0.05em;}
+.nav-brand span{color:var(--green);}
+.nav-right{display:flex;align-items:center;gap:14px;}
+.status-dot{width:8px;height:8px;border-radius:50%;background:var(--muted);flex-shrink:0;}
+.status-dot.live{background:var(--green);animation:pulse 2s infinite;}
+.status-dot.error{background:var(--red);}
+@keyframes pulse{0%,100%{opacity:1}50%{opacity:0.3}}
+.server-status{font-size:12px;color:var(--muted2);font-family:'Barlow Condensed',sans-serif;display:flex;align-items:center;gap:6px;}
+.rfbtn{display:flex;align-items:center;gap:6px;padding:7px 18px;background:var(--green);border:none;border-radius:var(--r-sm);color:#07080a;font-family:'Barlow',sans-serif;font-size:13px;font-weight:700;cursor:pointer;transition:all 0.2s;}
+.rfbtn:hover{filter:brightness(1.1);}
+.rfbtn:disabled{opacity:0.4;cursor:not-allowed;}
+.spin{width:13px;height:13px;border:2px solid rgba(0,0,0,0.2);border-top-color:#07080a;border-radius:50%;animation:sp 0.7s linear infinite;display:none;}
+@keyframes sp{to{transform:rotate(360deg)}}
+.last-upd{font-size:11px;color:var(--muted);font-family:'Barlow Condensed',sans-serif;}
+
+.tab-nav{display:flex;border-bottom:1px solid var(--border2);background:var(--bg2);padding:0 28px;overflow-x:auto;}
+.tab{padding:14px 18px;border:none;background:transparent;color:var(--muted2);font-family:'Barlow Condensed',sans-serif;font-size:15px;font-weight:600;letter-spacing:0.03em;cursor:pointer;border-bottom:2px solid transparent;transition:all 0.2s;white-space:nowrap;}
+.tab.on{color:var(--green);border-bottom-color:var(--green);}
+.tab:hover:not(.on){color:var(--text);}
+
+main{padding:22px 28px;max-width:1400px;margin:0 auto;}
+.tp{display:none;}.tp.on{display:block;}
+
+/* Server error banner */
+.err-banner{background:var(--red-bg);border:1px solid var(--red-b);border-radius:var(--r);padding:16px 20px;margin-bottom:20px;display:none;}
+.err-banner h3{color:var(--red);font-size:15px;margin-bottom:8px;}
+.err-banner p{color:var(--muted2);font-size:13px;line-height:1.7;}
+.err-banner code{background:var(--bg3);color:var(--green);padding:2px 8px;border-radius:4px;font-family:monospace;font-size:13px;}
+
+.stats-strip{display:grid;grid-template-columns:repeat(5,1fr);gap:10px;margin-bottom:20px;}
+.stat{background:var(--bg2);border:1px solid var(--border);border-radius:var(--r);padding:14px 16px;}
+.sl{font-size:10px;font-family:'Barlow Condensed',sans-serif;letter-spacing:0.1em;text-transform:uppercase;color:var(--muted);margin-bottom:6px;}
+.sv{font-family:'Bebas Neue',sans-serif;font-size:28px;letter-spacing:0.02em;line-height:1;}
+.ss{font-size:11px;color:var(--muted);margin-top:4px;}
+.cg{color:var(--green);}.cr{color:var(--red);}.ca{color:var(--amber);}.cb{color:var(--blue);}
+
+.sg{display:grid;grid-template-columns:repeat(5,1fr);gap:10px;margin-bottom:20px;}
+.sc{background:var(--bg2);border:1px solid var(--border);border-radius:var(--r);padding:13px;transition:border-color 0.2s;position:relative;overflow:hidden;}
+.sc:hover{border-color:var(--border3);}
+.sc::before{content:'';position:absolute;top:0;left:0;right:0;height:2px;opacity:0;transition:opacity 0.2s;}
+.sc.bull::before{background:var(--green);opacity:1;}
+.sc.bear::before{background:var(--red);opacity:1;}
+.sc.mixd::before{background:var(--amber);opacity:1;}
+.stk{font-family:'Bebas Neue',sans-serif;font-size:20px;letter-spacing:0.04em;margin-bottom:3px;}
+.smn{font-size:11px;color:var(--muted);margin-bottom:7px;}
+.sbar{height:4px;background:var(--bg5);border-radius:2px;overflow:hidden;display:flex;margin-bottom:6px;}
+.slbl{font-size:10px;font-weight:600;font-family:'Barlow Condensed',sans-serif;letter-spacing:0.05em;padding:2px 7px;border-radius:3px;}
+.bull-lbl{background:var(--green-bg);color:var(--green);}
+.bear-lbl{background:var(--red-bg);color:var(--red);}
+.mixd-lbl{background:var(--amber-bg);color:var(--amber);}
+.spx{font-size:12px;color:var(--muted2);margin-top:6px;font-family:'Barlow Condensed',sans-serif;}
+.rank-n{position:absolute;top:9px;right:9px;font-family:'Bebas Neue',sans-serif;font-size:20px;color:var(--border3);}
+
+table{width:100%;border-collapse:collapse;}
+thead{background:var(--bg3);}
+th{padding:10px 14px;font-size:10px;font-family:'Barlow Condensed',sans-serif;font-weight:600;letter-spacing:0.1em;text-transform:uppercase;color:var(--muted);text-align:left;border-bottom:1px solid var(--border2);}
+td{padding:10px 14px;font-size:13px;border-bottom:1px solid var(--border);vertical-align:middle;}
+tr:last-child td{border-bottom:none;}
+tr:hover td{background:var(--bg3);}
+.twrap{background:var(--bg2);border:1px solid var(--border);border-radius:var(--r);overflow:hidden;margin-bottom:20px;}
+
+.bge{font-size:10px;font-weight:700;font-family:'Barlow Condensed',sans-serif;letter-spacing:0.06em;padding:3px 8px;border-radius:4px;text-transform:uppercase;}
+.bge.bull{background:var(--green-bg);color:var(--green);border:1px solid var(--green-b);}
+.bge.bear{background:var(--red-bg);color:var(--red);border:1px solid var(--red-b);}
+.bge.mixd{background:var(--amber-bg);color:var(--amber);border:1px solid var(--amber-b);}
+.bge.buy{background:var(--green-bg);color:var(--green);border:1px solid var(--green-b);}
+.bge.sell{background:var(--red-bg);color:var(--red);border:1px solid var(--red-b);}
+.pill{font-size:10px;background:var(--bg4);color:var(--muted2);padding:2px 7px;border-radius:4px;font-family:'Barlow Condensed',sans-serif;}
+
+.pfrow{display:flex;gap:8px;margin-bottom:14px;flex-wrap:wrap;}
+.pfb{padding:5px 14px;border:1px solid var(--border2);border-radius:20px;background:transparent;color:var(--muted2);font-family:'Barlow Condensed',sans-serif;font-size:12px;font-weight:600;cursor:pointer;transition:all 0.15s;}
+.pfb.on{background:var(--green-bg);border-color:var(--green-b);color:var(--green);}
+.pfb:hover:not(.on){border-color:var(--border3);color:var(--text);}
+
+.pmets{display:grid;grid-template-columns:repeat(4,1fr);gap:10px;margin-bottom:20px;}
+
+.ri{padding:12px 0;border-bottom:1px solid var(--border);}
+.ri:last-child{border-bottom:none;}
+.rm{display:flex;align-items:center;gap:8px;margin-bottom:6px;flex-wrap:wrap;}
+.ru{font-weight:600;font-size:13px;}
+.rtk{font-family:'Bebas Neue',sans-serif;font-size:17px;color:var(--green);letter-spacing:0.04em;}
+.rtxt{font-size:13px;color:var(--muted2);line-height:1.55;}
+.rstk{font-size:11px;color:var(--muted);margin-top:4px;font-family:'Barlow Condensed',sans-serif;}
+
+.empty{text-align:center;padding:40px;color:var(--muted);font-size:13px;}
+.card{background:var(--bg2);border:1px solid var(--border);border-radius:var(--r);padding:20px;}
+.ct{font-family:'Barlow Condensed',sans-serif;font-size:12px;font-weight:600;letter-spacing:0.1em;text-transform:uppercase;color:var(--muted);margin-bottom:16px;}
+.pnlp{color:var(--green);font-weight:600;}.pnln{color:var(--red);font-weight:600;}
+
+@media(max-width:900px){
+  .sg,.stats-strip{grid-template-columns:repeat(3,1fr);}
+  .pmets{grid-template-columns:repeat(2,1fr);}
+  main{padding:14px;}
+  nav,.tab-nav{padding:0 14px;}
+}
+@media(max-width:600px){
+  .sg{grid-template-columns:repeat(2,1fr);}
+  .stats-strip{grid-template-columns:repeat(2,1fr);}
+}
+</style>
+</head>
+<body>
+
+<nav>
+  <div class="nav-brand">WSB<span>Intelligence</span></div>
+  <div class="nav-right">
+    <div class="server-status">
+      <div class="status-dot" id="sdot"></div>
+      <span id="sstat">Checking server...</span>
+    </div>
+    <span class="last-upd" id="lupd"></span>
+    <button class="rfbtn" id="rfbtn" onclick="loadData(true)">
+      <div class="spin" id="spin"></div>
+      <span id="btxt">Load Data</span>
+    </button>
+  </div>
+</nav>
+
+<div class="tab-nav">
+  <button class="tab on" onclick="sw('ov',this)">Overview</button>
+  <button class="tab" onclick="sw('stocks',this)">Top 25 Stocks</button>
+  <button class="tab" onclick="sw('users',this)">Top Users</button>
+  <button class="tab" onclick="sw('pos',this)">Paper Positions</button>
+</div>
+
+<main>
+
+<!-- Error banner -->
+<div class="err-banner" id="err-banner">
+  <h3>Cannot reach local server</h3>
+  <p>The dashboard needs the backend server running. Open a new terminal window and run:<br><br>
+  <code>node server.js</code><br><br>
+  Then click "Load Data" again. The server must be running every time you use this dashboard.</p>
+</div>
+
+<!-- Overview -->
+<div class="tp on" id="tp-ov">
+  <div class="stats-strip">
+    <div class="stat"><div class="sl">Posts analyzed</div><div class="sv cb" id="s-posts">—</div><div class="ss">live Reddit</div></div>
+    <div class="stat"><div class="sl">Market mood</div><div class="sv" id="s-mood">—</div><div class="ss" id="s-mood-s">not loaded</div></div>
+    <div class="stat"><div class="sl">Stocks tracked</div><div class="sv cb" id="s-stocks">—</div><div class="ss">mentioned today</div></div>
+    <div class="stat"><div class="sl">Open positions</div><div class="sv ca" id="s-pos">—</div><div class="ss">paper $1k each</div></div>
+    <div class="stat"><div class="sl">Portfolio P&L</div><div class="sv" id="s-pnl">—</div><div class="ss">unrealized</div></div>
+  </div>
+  <div class="card"><div class="ct">Latest recommendations</div><div id="ov-recs"><div class="empty">Click "Load Data" to fetch live Reddit intelligence</div></div></div>
+</div>
+
+<!-- Stocks -->
+<div class="tp" id="tp-stocks">
+  <div class="sg" id="sg"><div class="empty" style="grid-column:1/-1">Load data to see top 25 stocks</div></div>
+</div>
+
+<!-- Users -->
+<div class="tp" id="tp-users">
+  <div class="twrap">
+    <table>
+      <thead><tr><th>#</th><th>User</th><th>Subreddit</th><th>Posts</th><th>Bias</th><th>Calls</th><th>Win rate</th><th>Paper P&L</th><th>Tickers</th></tr></thead>
+      <tbody id="ub"><tr><td colspan="9" class="empty">Load data</td></tr></tbody>
+    </table>
+  </div>
+</div>
+
+<!-- Positions -->
+<div class="tp" id="tp-pos">
+  <div class="pmets">
+    <div class="stat"><div class="sl">Total deployed</div><div class="sv cb" id="p-dep">—</div><div class="ss">$1k per call</div></div>
+    <div class="stat"><div class="sl">Current value</div><div class="sv" id="p-val">—</div></div>
+    <div class="stat"><div class="sl">Total P&L</div><div class="sv" id="p-pnl">—</div></div>
+    <div class="stat"><div class="sl">Win rate</div><div class="sv" id="p-wr">—</div><div class="ss">positions in profit</div></div>
+  </div>
+  <div class="pfrow">
+    <button class="pfb on" onclick="fp('all',this)">All</button>
+    <button class="pfb" onclick="fp('buy',this)">BUY calls</button>
+    <button class="pfb" onclick="fp('sell',this)">SHORT calls</button>
+    <button class="pfb" onclick="fp('win',this)">Winning</button>
+    <button class="pfb" onclick="fp('lose',this)">Losing</button>
+  </div>
+  <div class="twrap">
+    <table>
+      <thead><tr><th>User</th><th>Ticker</th><th>Call</th><th>Entry</th><th>Current</th><th>Chg%</th><th>Stake</th><th>P&L $</th><th>P&L %</th><th>Date</th></tr></thead>
+      <tbody id="pb"><tr><td colspan="10" class="empty">Load data</td></tr></tbody>
+    </table>
+  </div>
+</div>
+
+</main>
+
+<script>
+const API = 'https://wsb-dashboard.onrender.com';
+let D = { stocks:[], users:[], positions:[], totalPosts:0, overall:'mixed' };
+let posFilter = 'all';
+
+function sw(n,b){document.querySelectorAll('.tp').forEach(p=>p.classList.remove('on'));document.querySelectorAll('.tab').forEach(t=>t.classList.remove('on'));document.getElementById('tp-'+n).classList.add('on');b.classList.add('on');}
+function fp(f,b){posFilter=f;document.querySelectorAll('.pfb').forEach(x=>x.classList.remove('on'));b.classList.add('on');renderPos();}
+function esc(s){return(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');}
+function calcPnl(p){if(!p.currentPrice||!p.entryPrice)return null;const r=(p.currentPrice-p.entryPrice)/p.entryPrice;return p.call==='buy'?1000*r:-1000*r;}
+function calcPct(p){if(!p.currentPrice||!p.entryPrice)return null;const r=(p.currentPrice-p.entryPrice)/p.entryPrice*100;return p.call==='buy'?r:-r;}
+function pnlC(v){return v>0?'pnlp':v<0?'pnln':'';}
+function setLoad(on){document.getElementById('rfbtn').disabled=on;document.getElementById('spin').style.display=on?'block':'none';document.getElementById('btxt').textContent=on?'Loading...':'Refresh';}
+
+async function checkServer(){
+  try{
+    const r=await fetch(API+'/',{signal:AbortSignal.timeout(3000)});
+    document.getElementById('sdot').className='status-dot live';
+    document.getElementById('sstat').textContent='Server connected';
+    document.getElementById('err-banner').style.display='none';
+    return true;
+  }catch(e){
+    document.getElementById('sdot').className='status-dot error';
+    document.getElementById('sstat').textContent='Server offline';
+    document.getElementById('err-banner').style.display='block';
+    return false;
+  }
+}
+
+async function loadData(force=false){
+  const ok=await checkServer();
+  if(!ok)return;
+  setLoad(true);
+  try{
+    const r=await fetch(API+'/api/data'+(force?'?force=1':''));
+    if(!r.ok)throw new Error('Server error '+r.status);
+    D=await r.json();
+    renderAll();
+    document.getElementById('lupd').textContent='Updated '+new Date().toLocaleTimeString();
+  }catch(e){
+    document.getElementById('sdot').className='status-dot error';
+    document.getElementById('sstat').textContent='Error: '+e.message;
+  }finally{setLoad(false);}
+}
+
+function renderAll(){
+  const pnlTot=D.positions.reduce((a,p)=>a+(calcPnl(p)||0),0);
+  // Stats
+  document.getElementById('s-posts').textContent=D.totalPosts||'—';
+  const mEl=document.getElementById('s-mood');
+  mEl.textContent=(D.overall||'mixed').charAt(0).toUpperCase()+(D.overall||'mixed').slice(1);
+  mEl.className='sv '+(D.overall==='bullish'?'cg':D.overall==='bearish'?'cr':'ca');
+  document.getElementById('s-mood-s').textContent=D.overall==='bullish'?'positive momentum':D.overall==='bearish'?'negative momentum':'divided opinion';
+  document.getElementById('s-stocks').textContent=D.stocks?.length||'—';
+  document.getElementById('s-pos').textContent=D.positions?.length||'—';
+  const plEl=document.getElementById('s-pnl');
+  plEl.textContent=(pnlTot>=0?'+':'')+'$'+Math.round(Math.abs(pnlTot));
+  plEl.className='sv '+(pnlTot>=0?'cg':'cr');
+
+  // Recommendations
+  const recs=[...(D.positions||[])].slice(-10).reverse();
+  document.getElementById('ov-recs').innerHTML=recs.length?recs.map(p=>{
+    const pnl=calcPnl(p),pct=calcPct(p);
+    const chg=p.currentPrice&&p.entryPrice?((p.currentPrice-p.entryPrice)/p.entryPrice*100):null;
+    return`<div class="ri"><div class="rm"><span class="ru">u/${esc(p.user)}</span><span class="rtk">$${p.ticker}</span><span class="bge ${p.call==='buy'?'buy':'sell'}">${p.call.toUpperCase()}</span><span class="pill">r/${p.sub}</span>${pnl!=null?`<span class="${pnlC(pnl)}">${pnl>=0?'+':''}$${Math.round(Math.abs(pnl))} (${pct>=0?'+':''}${pct.toFixed(1)}%)</span>`:''}</div><div class="rtxt">${esc(p.text)}</div><div class="rstk">Paper $1,000 · Entry $${p.entryPrice} · Now $${p.currentPrice||'—'} · ${p.date}</div></div>`;
+  }).join(''):'<div class="empty">No buy/sell calls detected in current posts</div>';
+
+  // Stocks
+  document.getElementById('sg').innerHTML=(D.stocks||[]).map((s,i)=>{
+    const tot=(s.pos+s.neg+s.neu)||1;
+    const pW=Math.round(s.pos/tot*100),nuW=Math.round(s.neu/tot*100),ngW=100-pW-nuW;
+    const dom=s.pos>=s.neg?(s.pos>=s.neu?'bull':'mixd'):'bear';
+    const lbl=dom==='bull'?'Bullish':dom==='bear'?'Bearish':'Mixed';
+    const tc=dom==='bull'?'cg':dom==='bear'?'cr':'ca';
+    const lc=dom==='bull'?'bull-lbl':dom==='bear'?'bear-lbl':'mixd-lbl';
+    const chgC=(s.change||0)>=0?'cg':'cr';
+    return`<div class="sc ${dom}"><div class="rank-n">${i+1}</div><div class="stk ${tc}">$${s.ticker}</div><div class="smn">${(s.mentions||0).toLocaleString()} mentions</div><div class="sbar"><div style="width:${pW}%;background:var(--green);height:100%;"></div><div style="width:${nuW}%;background:var(--amber);height:100%;"></div><div style="width:${ngW}%;background:var(--red);height:100%;"></div></div><span class="slbl ${lc}">${lbl}</span><div class="spx">${s.price?'$'+s.price:'—'} <span class="${chgC}">${s.change?(s.change>=0?'+':'')+s.change+'%':''}</span></div></div>`;
+  }).join('')||'<div class="empty" style="grid-column:1/-1">No stocks</div>';
+
+  // Users
+  document.getElementById('ub').innerHTML=(D.users||[]).map((u,i)=>{
+    const bias=u.bias||'mixed';
+    const bc=bias==='bullish'?'bull':bias==='bearish'?'bear':'mixd';
+    const bl=bias==='bullish'?'Bullish':bias==='bearish'?'Bearish':'Mixed';
+    const up=D.positions.filter(p=>p.user===u.username);
+    const pnl=up.reduce((a,p)=>a+(calcPnl(p)||0),0);
+    const wins=up.filter(p=>(calcPnl(p)||0)>0).length;
+    const wr=up.length?Math.round(wins/up.length*100):null;
+    const wc=wr!=null?(wr>=60?'cg':wr<40?'cr':'ca'):'';
+    const tks=(u.tickers||[]).slice(0,4).map(t=>`<span class="pill">$${t}</span>`).join(' ');
+    return`<tr><td style="color:var(--muted);">${i+1}</td><td><div style="font-weight:600;">u/${esc(u.username)}</div><div class="pill" style="margin-top:3px;">score: ${(u.score||0).toLocaleString()}</div></td><td><span class="pill">r/${u.sub}</span></td><td style="font-weight:600;">${u.posts}</td><td><span class="bge ${bc}">${bl}</span></td><td style="font-weight:600;">${(u.calls||[]).length}</td><td class="${wc}" style="font-weight:600;">${wr!=null?wr+'%':'—'}</td><td class="${pnlC(pnl)}">${(pnl>=0?'+':'')+'$'+Math.round(Math.abs(pnl))}</td><td>${tks||'—'}</td></tr>`;
+  }).join('')||'<tr><td colspan="9" class="empty">No users</td></tr>';
+
+  renderPos();updatePortStats();
+}
+
+function renderPos(){
+  let pos=[...(D.positions||[])];
+  if(posFilter==='buy')pos=pos.filter(p=>p.call==='buy');
+  else if(posFilter==='sell')pos=pos.filter(p=>p.call==='sell');
+  else if(posFilter==='win')pos=pos.filter(p=>(calcPnl(p)||0)>0);
+  else if(posFilter==='lose')pos=pos.filter(p=>{const v=calcPnl(p);return v!=null&&v<0;});
+  pos.sort((a,b)=>(calcPnl(b)||0)-(calcPnl(a)||0));
+  document.getElementById('pb').innerHTML=pos.length?pos.map(p=>{
+    const pnl=calcPnl(p),pct=calcPct(p);
+    const chg=p.currentPrice&&p.entryPrice?((p.currentPrice-p.entryPrice)/p.entryPrice*100):null;
+    return`<tr><td style="font-weight:600;">u/${esc(p.user)}</td><td style="font-weight:600;color:var(--green);">$${p.ticker}</td><td><span class="bge ${p.call==='buy'?'buy':'sell'}">${p.call.toUpperCase()}</span></td><td>${p.entryPrice?'$'+p.entryPrice:'—'}</td><td>${p.currentPrice?'$'+p.currentPrice:'—'}</td><td class="${chg!=null?(chg>=0?'cg':'cr'):''}">${chg!=null?(chg>=0?'+':'')+chg.toFixed(2)+'%':'—'}</td><td>$1,000</td><td class="${pnl!=null?pnlC(pnl):''}">${pnl!=null?(pnl>=0?'+':'')+'$'+Math.round(Math.abs(pnl)):'—'}</td><td class="${pct!=null?pnlC(pct):''}">${pct!=null?(pct>=0?'+':'')+pct.toFixed(1)+'%':'—'}</td><td style="font-size:11px;color:var(--muted);">${p.date}</td></tr>`;
+  }).join(''):'<tr><td colspan="10" class="empty">No positions match this filter</td></tr>';
+}
+
+function updatePortStats(){
+  const pos=D.positions||[];
+  const dep=pos.length*1000;
+  const pnl=pos.reduce((a,p)=>a+(calcPnl(p)||0),0);
+  const wins=pos.filter(p=>(calcPnl(p)||0)>0).length;
+  const wr=pos.length?Math.round(wins/pos.length*100):0;
+  document.getElementById('p-dep').textContent='$'+dep.toLocaleString();
+  const vEl=document.getElementById('p-val');vEl.textContent='$'+Math.round(dep+pnl).toLocaleString();vEl.className='sv '+(pnl>=0?'cg':'cr');
+  const plEl=document.getElementById('p-pnl');plEl.textContent=(pnl>=0?'+':'')+'$'+Math.round(Math.abs(pnl)).toLocaleString();plEl.className='sv '+(pnl>=0?'cg':'cr');
+  const wrEl=document.getElementById('p-wr');wrEl.textContent=wr+'%';wrEl.className='sv '+(wr>=60?'cg':wr<40?'cr':'ca');
+}
+
+// Auto-check server on load, auto-refresh every 10 min
+window.addEventListener('load',()=>{checkServer();setTimeout(()=>loadData(),500);});
+setInterval(()=>loadData(),10*60*1000);
+</script>
+</body>
+</html>
